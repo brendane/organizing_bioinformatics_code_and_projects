@@ -1,0 +1,602 @@
+#+OPTIONS: H:3 toc:2 ^:{} num:2
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="styles/bigblow/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="styles/bigblow/css/bigblow.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="styles/bigblow/css/hideshow.css"/>
+#+HTML_HEAD: <script type="text/javascript" src="styles/bigblow/js/jquery-1.11.0.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="styles/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="styles/bigblow/js/jquery.localscroll-min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="styles/bigblow/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="styles/bigblow/js/jquery.zclip.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="styles/bigblow/js/bigblow.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="styles/bigblow/js/hideshow.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="styles/lib/js/jquery.stickytableheaders.min.js"></script>
+
+#+TITLE: Organizing files and writing batch scripts for MSI
+#+AUTHOR: 
+
+* Organization of code, data, and results files
+   
+** General tips:
+
+   - Every file and directory should have a name that tells you what
+     is in it
+   - Never over-write old results with new results, unless you are
+     fixing a bug in the old results
+   - Keep a "lab" notebook with details on every analysis and notes
+   - For each project, have a README or WORKFLOW file with the steps
+     you followed and the locations of the most current results
+   - Do as much of the analysis as possible with scripts, rather than
+     just typing commands into the terminal -- this provides
+     documentation of what you did and makes it easy to do it over again.
+   - Add comments to your code that at least say what the script does
+     and how it is different from other versions of the same analysis
+   
+** How I like to organize my files
+
+   There are lots of ways you might set up your workspace, but I have
+   a particular format that seems to work well for bioinformatic
+   projects.
+   
+   First, I have a ~project/~ directory (or maybe ~work/~) in my home
+   directory.
+
+   Then, for each project, I have a sub-directory under
+   ~project/~. For example, ~project/ensifer_rna_seq~.
+
+   Then, within the directory for each project, I have the following
+   four directories:
+   - ~data~ :: Basic input files, like reads, reference genomes,
+               information on strains. Generally speaking, these are
+               files that exist prior to starting on the project
+   - ~results~ :: All the output from analyses, further organized by
+                  type of analysis and date or run
+   - ~script~ :: Scripts used to run the analysis
+   - ~notes~ :: A place to store an electronic version of your lab
+                notebook and associated files
+     
+   Within the results section, I typically have subdirectories by
+   analysis category, then further levels of subdirectory with names
+   that are chosen to reflect how the analysis was done or on what
+   dataset. Usually the final subdirectory has the date I first ran a
+   particular analysis. For example, if I write a script on May 17,
+   2017 to align reads to the reference using bwa, I might put the
+   results in a directory called:
+   
+   ~results/align/bwa/2017-05-17~
+   
+   or, if I anticipate trying different datasets or different
+   reference genomes:
+   
+   ~results/align/all_pools/USDA1106/bwa/2017-05-17~ (USDA1106 is the
+   reference strain)
+   
+   I name scripts so that it is obvious where the results of that
+   script can be found. For example, the script to run the alignments
+   might be called:
+   
+   ~align_bwa_2017-05-17.sh~
+   
+   And then, if on June 1, we decide to run the alignments again, but
+   with different settings, we would put the results in:
+   
+   ~results/align/bwa/2017-06-01
+   
+   and the script would be called:
+   
+   ~align_bwa_2017-06-01.sh~
+   
+   or something similar.
+   
+   The details of these naming conventions aren't really important,
+   but it is important that we don't just have a directory called
+   "the_alignments" that gets overwritten every time you change your
+   mind about how to run the analysis. And we don't name scripts
+   something like "analysis_1.sh" or some other un-decipherable name.
+   
+   It is okay to overwrite a set of analyses if you find a bug. And
+   it's also okay to archive or delete old analyses that you know you
+   don't need, though you should keep the scripts. You should also
+   have some way to keep track of which version(s) are current --
+   README files work well, if you are disciplined about keeping them
+   up to date, as does keeping a notebook.
+
+** Oh no, I deleted something important!
+ 
+   You should be very careful when deleting files on MSI, because
+   there is no "Trash" to hold deleted files. It's a good idea to use
+   the ~-i~ option to ~rm~ whenever possible. However, if the file was
+   created a day or more ago, you might still be okay, because MSI
+   takes daily snapshots of all the files in your home directory.
+   
+   If you delete a file, check in  ~$HOME/.snapshots~ -- you'll see a
+   bunch of directories named by the date and time the snapshot was
+   taken. Each of those directories contains a complete copy of your
+   home directory from which you can copy deleted files to your real
+   home directory.
+   
+
+* Writing organized batch scripts
+  
+** General tips
+   
+   - The beginning of your script should have comments that explain
+     what the script does and how it differs from other versions of
+     the same analysis. Making some notes about the decisions you made
+     while writing the script can also be helpful. The only danger
+     with too many comments at the beginning of a script is that you
+     will forget to edit them if you make a copy of the script.
+
+   Bash (the standard shell language) has some quirky behavior that
+   make sense when it is being used interactively, but can lead to
+   errors being ignored if you don't take steps to alter the behavior
+   in your batch scripts:
+
+   - Undefined variables are treated as an empty string, rather than
+     an error, by default.
+
+   - If you have commands put together with pipes (e.g ~head -n 10 |
+     grep foo~), whether or not the group of commands is considered to
+     have failed depends only on the final command.
+
+   - If a command fails, bash tries the next command instead of stopping.
+     
+   - To address these issues, add ~set -euo pipefail~ to your script
+     before you start running any analyses. You probably have to add
+     it after you load modules, because sometimes ~module load ...~
+     commands are not compatible with these settings. Now, your script
+     will stop if there are errors, which is much better than
+     continuing to run incorrectly.
+   
+   To help you notice that there are errors, you can use the or
+   operator (~||~) like this:
+
+   #+BEGIN_SRC sh
+     head -n 25 my_favorite_file.txt || \
+        echo "getting the first lines of my favorite file failed"
+   #+END_SRC
+   
+   ~||~ checks if the command(s) to the left of it failed, if so, it
+   runs the commands to the right. So, the piece of code above will
+   either print out the first 25 lines of a file or will print an
+   error message. Because this will not count as an error, the
+   script will keep running. So, we have to explicitly exit:
+
+   #+BEGIN_SRC sh
+     head -n 25 my_favorite_file.txt \
+        || { echo "getting the first lines of my favorite file failed"; exit 1; }
+   #+END_SRC
+   
+   For every non-trivial command in your scripts, add an error
+   message. Then, you can quickly check your log files for issues
+   by using grep:
+   
+   #+BEGIN_SRC sh
+     grep -i "fail\|err\|warn\|kill" log files... 
+   #+END_SRC
+   
+   It's still a good idea to actually look at the log files and check
+   the output, because sometimes errors still sneak through.
+
+** Record-keeping
+   
+*** Lab notebook
+
+    Keep track of analyses in your notebook.
+
+*** Time-stamped copies of scripts
+
+    You can have scripts make time-stamped copies of themselves every
+    time they are run:
+    #+begin_src sh
+       # Assuming $OUTPUT_DIR is the directory you've created for your output
+       # files:
+       mkdir -p "${OUTPUT_DIR}/script_copies"
+       # $0 is a variable that holds the name of the script
+       cp "$0" "${OUTPUT_DIR}/script_copies/$(basename "$0")-$(date "%Y-%m-%d-%H%M)"
+    #+end_src
+    
+    Notice that, in this example, the copies get saved along with the
+    output of the analyses, in a directory called "script_copies". You
+    don't have to do it that way, but you definitely want some
+    organized location to hold the copies.
+
+*** Version control for scripts
+
+    Git is a program for tracking changes in files -- it allows you to
+    view earlier versions of a script that you modified, even when
+    the old version is no longer in one of the automatic backup
+    snaphots. Consider setting up a git repository for your scripts:
+    - Go to the directory with your scripts and type ~git init~
+    - Then type:
+      #+BEGIN_SRC sh
+        git add -A
+        git commit -m "Initial commit" 
+      #+END_SRC
+    - Then every time you make changes that you want to have tracked
+      by git:
+      #+BEGIN_SRC sh
+        git add ...name of files with changes or -A for all... 
+        git commit -m "...comment on these changes..."
+      #+END_SRC
+    - You can also have this happen automatically every time you log
+      out of MSI by adding the following code to you
+      ~$HOME/.bash_logout~ file:
+      #+BEGIN_SRC sh
+        # All these paths should be absolute paths:
+        git_repos=( \
+            "${HOME}/project/rna_seq_project/script" \
+            "${HOME}/project/other_project/script" \
+            )   
+
+        for gr in ${git_repos[@]}; do
+            cd "$gr"
+            if [[ $(git log --since "+%Y-%m-%d-%H:%M") ]]; then
+                echo "${gr} is up to date"
+             else
+                git add -A
+                git commit -a -m "Automatic logout commit on $(date '+%Y-%m-%d-%H:%M')" && \
+                    echo "committed ${gr}"
+            fi  
+        done
+              
+      #+END_SRC
+   
+*** log files
+    
+    Every batch job generates a pair of log files, which you should
+    check for errors after the script finishes, and every array job
+    (see below) generates a pair of log files for every
+    run. Especially if you are submitting large array jobs, or if you
+    have multiple analyses running at the same time, you don't want
+    these to all pile up in your home directory. I like to create a
+    directory called "working" (for "working directory") in the same
+    place as the output for each script, and have the log files be
+    created there. Because the log files are created in whatever
+    directory you were in when you submitted the job, just make the
+    working directory, ~cd~ to it, and then submit the job.
+    
+    E.g.:
+    #+BEGIN_SRC sh
+      mkdir -p "results/alignment/2018-07-11"
+      cd "results/alignment/2018-07-11"
+      mkdir -p "working"
+      cd "working"
+      qsub "../../../../script/alignment_2018-07-11.sh"
+    #+END_SRC
+    
+    I also tend to save the log files, in case I want to check them
+    again. I have a script that makes a tar.gz file out of all the log
+    files in a directory and moves them to another directory (which I
+    call "log").
+
+** Array jobs
+   
+   If you have to run the same code on a bunch of different input
+   files -- like aligning reads from 100 libraries to the same
+   reference genome -- there are several options:
+
+   - Write one script and submit it a bunch of times, each time
+     changing the name of the input file inside the script; this is
+     error-prone and tedious.
+
+   - Write one script with a loop; this is fine for very short jobs,
+     but would take too long for anything else.
+
+   - Write an array job.
+   
+   Array jobs are a way to submit one script that will be run
+   simultaneously as many times as you want (actually, no more than
+   500 are allowed on MSI right now, but that is usually enough). You
+   use the ~-t~ option to qsub to make an array job:
+
+   #+BEGIN_SRC sh
+     # Regular job, running for one hour
+     qsub -l walltime=01:00:00 my_batch_script.sh
+
+     # Array job that runs my_batch_script.sh 100 times (potentially)
+     # simultaneously (jobs 1 - 100):
+     qsub -l walltime=01:00:00 -t 1-100 my_batch_script.sh
+   #+END_SRC
+   
+   After ~-t~, you specify which job numbers you want to run, either
+   as a single number, as a range (e.g. "1-100"), or a list separated
+   by commas (e.g. "1,10,12,13").
+   
+   When a batch job is running, there is a variable called
+   ~$PBS_ARRAYID~ that holds the job number. You can then use the job
+   number to change whatever settings need to be changed for each
+   individual run. For example, if you had 10 fastq files to align,
+   named "reads.1.fastq", "reads.2.fastq", ..., you could write a
+   script like this:
+
+   #+BEGIN_SRC sh
+     # File that we want to align in this run
+     fastq_file="reads.${PBS_ARRAYID}.fastq" 
+
+     # Align
+     bwa "$fastq_file" ...options... > "alignment.${PBS_ARRAYID}.bam"
+   #+END_SRC
+   
+   And then submit the job like this:
+   #+BEGIN_SRC sh
+     qsub -t 1-10 "my_alignment_job.sh" 
+   #+END_SRC
+   
+   But what if your files, or the settings you want to change in each
+   run, don't have simple sequential numbering as part of their names?
+   For example, "sample_A34.fastq", "sample_B10.fastq", "sample_C0.fastq".
+   
+   You can make a file for each run that holds information about the
+   run:
+   #+BEGIN_SRC sh
+     echo "sample_A34.fastq" > "array_data.1" 
+     echo "sample_B10.fastq" > "array_data.2" 
+     echo "sample_C0.fastq" > "array_data.3" 
+   #+END_SRC
+   
+   Then have your script extract information from these files:
+   #+BEGIN_SRC sh
+     # File that we want to align in this run. This time, get the information
+     # from one of the array_data files we made before.
+     fastq_file="$(cat "array_data.${PBS_ARRAYID}")"
+
+     # Align
+     bwa "$fastq_file" ...options... > "alignment.${PBS_ARRAYID}.bam"
+   #+END_SRC
+   
+   And submit as before:
+   #+BEGIN_SRC sh
+     qsub -t 1-10 "my_alignment_job.sh" 
+   #+END_SRC
+   
+   These examples have all 
+ 
+
+** Doing all of this automatically in one script
+
+   So, if you want to submit an array job, and you're following my
+   system, there are a bunch of things that need to happen:
+   - You need to make data files for each run of the job
+   - The script needs to make a copy of itself, and it needs to have a
+     script_copies directory in which to put the copy. This also means
+     the output directory needs to be created
+   - The script needs to be submitted from the "working" subdirectory
+     of the output directory
+   
+   So, before you run the script, there is some manual file and
+   directory creating that you have to do. This is fine, and I think
+   it's a good idea while you're getting comfortable with writing and
+   submitting jobs.
+
+   However, I prefer to have everything happen automatically and have
+   all the code be in one script. To do this, I break the script into
+   three parts:
+   1. Comments, settings that are common to all runs, and
+      file/directory paths
+   2. Code that is run during the batch job
+   3. Code that sets up the output directory and the array data files,
+      and submits the job.
+
+   Here is an example of a script I used while analysing some select &
+   resequence data:
+   
+   #+BEGIN_SRC sh
+     #!/bin/bash
+     #
+     # Estimate the allele frequencies of sites known to be variable.
+     #
+     # SETTINGS
+     #
+     WALLTIME="00:45:00"
+     QUEUE="small"
+
+     PROJDIR="${HOME}/project/liana_soil_exp"
+     DATASET="160908_161228_reads"
+     INDIR="${PROJDIR}/results/base_count/${DATASET}/popoolation/2017-02-16"
+     SYNCFILE="${INDIR}/output.vars.sync"
+     POOLFILE="${INDIR}/pools.txt"
+     OUTDIR="${PROJDIR}/results/allele_freq/${DATASET}/from_counts/2017-04-19"
+     WORKDIR="${OUTDIR}/working"
+     LOGDIR="${OUTDIR}/log"
+     ARRAYDIR="${OUTDIR}/arrayjobdata"
+     SCRIPTDIR="${OUTDIR}/script_copies"
+     counter="${PROJDIR}/script/bin/allele_freq_sync.py"
+
+     if [[ $PBS_ENVIRONMENT == "PBS_BATCH" ]]; then
+
+         set -euo pipefail
+
+         POOL=`cut -f 1 -d " " "${ARRAYDIR}/${PBS_ARRAYID}"`
+         cd $OUTDIR
+
+         cp "$counter" .
+         ./$(basename "$counter") --output "${POOL}.freq.txt" \
+             $POOL $POOLFILE $SYNCFILE \
+             || { echo "getting frequencies for ${POOL} failed"; exit 1; }
+
+         rm "${ARRAYDIR}/${PBS_ARRAYID}"
+
+     else
+
+         mkdir -p $OUTDIR
+         mkdir -p $LOGDIR
+         mkdir -p $SCRIPTDIR
+         mkdir -p $WORKDIR
+         mkdir -p $ARRAYDIR
+
+         sfile="${SCRIPTDIR}/$(date '+%Y-%m-%d-%H%M')-$(basename $0)"
+         cp $0 $sfile
+
+         i=0
+         for pool in $(cat $POOLFILE); do
+             echo $pool > "${ARRAYDIR}/${i}"
+             i=$(($i+1))
+         done
+
+         cd $WORKDIR
+         qsub -q $QUEUE -l walltime=$WALLTIME -t 0-$(($i-1)) $sfile
+         echo $WORKDIR
+         echo "Submitted ${i} jobs"
+
+     fi
+   #+END_SRC
+
+*** First section
+    The script starts with comments, settings, and paths to the input
+    data and output directory:
+    #+BEGIN_SRC sh
+     #!/bin/bash
+     #
+     # Estimate the allele frequencies of sites known to be variable.
+     #
+     # SETTINGS
+     #
+     WALLTIME="00:45:00"
+     QUEUE="small"
+
+     PROJDIR="${HOME}/project/liana_soil_exp"
+     DATASET="160908_161228_reads"
+     INDIR="${PROJDIR}/results/base_count/${DATASET}/popoolation/2017-02-16"
+     SYNCFILE="${INDIR}/output.vars.sync"
+     POOLFILE="${INDIR}/pools.txt"
+     OUTDIR="${PROJDIR}/results/allele_freq/${DATASET}/from_counts/2017-04-19"
+     WORKDIR="${OUTDIR}/working"
+     LOGDIR="${OUTDIR}/log"
+     ARRAYDIR="${OUTDIR}/arrayjobdata"
+     SCRIPTDIR="${OUTDIR}/script_copies"
+     counter="${PROJDIR}/script/bin/allele_freq_sync.py"
+   #+END_SRC
+    
+    I think that's pretty straightforward, although it's long.
+ 
+*** Second section
+    Then, there is a chunk of code that only runs during the batch job:
+ 
+    #+BEGIN_SRC sh
+      if [[ $PBS_ENVIRONMENT == "PBS_BATCH" ]]; then
+ 
+          # Would load modules here, if needed...
+ 
+          set -euo pipefail
+ 
+          POOL=`cut -f 1 -d " " "${ARRAYDIR}/${PBS_ARRAYID}"`
+          cd $OUTDIR
+ 
+          cp "$counter" .
+          ./$(basename "$counter") --output "${POOL}.freq.txt" \
+                   $POOL $POOLFILE $SYNCFILE \
+              || { echo "getting frequencies for ${POOL} failed"; exit 1; }
+ 
+          rm "${ARRAYDIR}/${PBS_ARRAYID}"
+    #+END_SRC
+
+    The environment variable "$PBS_ENVIRONMENT" will have the value
+    "PBS_BATCH" during a batch job run (much like the $PBS_ARRAYID, but
+    $PBS_ENVIRONMENT is set during non-array jobs too). So, the first
+    line checks if we are actually running this as a batch job.
+    #+BEGIN_SRC sh
+      if [[ $PBS_ENVIRONMENT == "PBS_BATCH" ]]; then
+    #+END_SRC
+ 
+    Then, we have ~set -euo pipefail~.
+    
+    Then, we use $PBS_ARRAYID to extract the sample name for this run
+    of the array jobs:
+    #+BEGIN_SRC sh
+      POOL=`cut -f 1 -d " " "${ARRAYDIR}/${PBS_ARRAYID}"`
+    #+END_SRC
+ 
+    The, there is the code that actually does the analysis or data
+    manipulation.
+    #+BEGIN_SRC sh
+      cp "$counter" .
+      ./$(basename "$counter") --output "${POOL}.freq.txt" \
+            $POOL $POOLFILE $SYNCFILE \
+        || { echo "getting frequencies for ${POOL} failed"; exit 1; }
+    #+END_SRC
+   
+    Finally, the array data file for this run is deleted. This helps
+    keep things tidy, and it provides another way to check that this
+    run finished -- if the array data file is still there, then you
+    know the last line never got run.
+
+    #+BEGIN_SRC sh
+      rm "${ARRAYDIR}/${PBS_ARRAYID}"
+    #+END_SRC
+ 
+*** Third section
+    Finally, there is some code that sets up the output directory,
+    makes a copy of itself, makes the array data files, and then
+    submits itself:
+
+    #+BEGIN_SRC sh
+      else
+
+          mkdir -p $OUTDIR
+          mkdir -p $LOGDIR
+          mkdir -p $SCRIPTDIR
+          mkdir -p $WORKDIR
+          mkdir -p $ARRAYDIR
+ 
+          sfile="${SCRIPTDIR}/$(date '+%Y-%m-%d-%H%M')-$(basename $0)"
+          cp $0 $sfile
+ 
+          i=0
+          for pool in $(cat $POOLFILE); do
+              echo $pool > "${ARRAYDIR}/${i}"
+              i=$(($i+1))
+          done
+ 
+          cd $WORKDIR
+          qsub -q $QUEUE -l walltime=$WALLTIME -t 0-$(($i-1)) $sfile
+          echo $WORKDIR
+          echo "Submitted ${i} jobs"
+ 
+      fi
+
+    #+END_SRC
+
+    The ~else~ here is part of the if statement at the beginning of the
+    code that actually runs the analysis, so this part is run only when
+    the script is not running as a batch job.
+
+    First, various output directories are created (defined in the first
+    section of the script):
+   
+    #+BEGIN_SRC sh
+      mkdir -p $OUTDIR
+      mkdir -p $LOGDIR
+      mkdir -p $SCRIPTDIR
+      mkdir -p $WORKDIR
+      mkdir -p $ARRAYDIR
+    #+END_SRC
+   
+    Then, the script copies itself:
+
+    #+BEGIN_SRC sh
+      sfile="${SCRIPTDIR}/$(date '+%Y-%m-%d-%H%M')-$(basename $0)"
+      cp $0 $sfile  
+    #+END_SRC
+
+    Then array data files are set up:
+    #+BEGIN_SRC sh
+      i=0
+      for pool in $(cat $POOLFILE); do
+          echo $pool > "${ARRAYDIR}/${i}"
+          i=$(($i+1))
+      done
+    #+END_SRC
+   
+    The code to set up array data files will vary quite a bit. Here,
+    I'm extracting sample names from a file made during an earlier step
+    of the analysis.
+
+    And then the array job is submitted:
+
+    #+BEGIN_SRC sh
+          cd "$WORKDIR"
+          qsub -q "$QUEUE" -l "walltime=$WALLTIME" -t "0-$(($i-1))" "$sfile"
+          echo "$WORKDIR"   # Print out the directory where log files will be sent
+          echo "Submitted ${i} jobs" # Print out the number of jobs submitted
+      fi
+    #+END_SRC
